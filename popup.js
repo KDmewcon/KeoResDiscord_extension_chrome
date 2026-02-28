@@ -122,6 +122,7 @@
 
       if (categories && Array.isArray(categories)) {
         allDecorations = [];
+        allEffects = [];
         allNameplates = [];
         categories.forEach(category => {
           if (category.products) {
