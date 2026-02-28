@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Discord Decoration Grabber</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="app">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <path d="M20.317 4.37a19.791 19.791 0 00-4.885-1.515.074.074 0 00-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 00-5.487 0 12.64 12.64 0 00-.617-1.25.077.077 0 00-.079-.037A19.736 19.736 0 003.677 4.37a.07.07 0 00-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 00.031.057 19.9 19.9 0 005.993 3.03.078.078 0 00.084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 00-.041-.106 13.107 13.107 0 01-1.872-.892.077.077 0 01-.008-.128 10.2 10.2 0 00.372-.292.074.074 0 01.077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 01.078.01c.12.098.246.198.373.292a.077.077 0 01-.006.127 12.299 12.299 0 01-1.873.892.077.077 0 00-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 00.084.028 19.839 19.839 0 006.002-3.03.077.077 0 00.032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 00-.031-.03z" fill="#5865F2"/>
+        </svg>
+        <h1>Decoration Grabber</h1>
+      </div>
+      <div class="status" id="status">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">Đang kiểm tra...</span>
+      </div>
+    </header>
+
+    <!-- Tab Navigation -->
+    <nav class="tabs">
+      <button class="tab active" data-tab="decorations">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M8 1a7 7 0 100 14A7 7 0 008 1zm0 12.5a5.5 5.5 0 110-11 5.5 5.5 0 010 11z"/>
+          <circle cx="8" cy="8" r="3"/>
+        </svg>
+        Decorations
+      </button>
+      <button class="tab" data-tab="effects">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M8 1l2 5h5l-4 3 1.5 5L8 11l-4.5 3L5 9 1 6h5z"/>
+        </svg>
+        Effects
+      </button>
+      <button class="tab" data-tab="nameplates">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+          <rect x="1" y="4" width="14" height="8" rx="2"/>
+          <path d="M4 7h8M4 9h5" stroke="#1a1b2e" stroke-width="1.2"/>
+        </svg>
+        Nameplates
+      </button>
+      <button class="tab" data-tab="collected">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M14 2H2v12h12V2zm-1 11H3V3h10v10z"/>
+          <path d="M5 7h6v2H5z"/>
+        </svg>
+        Tất cả
+      </button>
+    </nav>
+
+    <!-- Controls -->
+    <div class="controls">
+      <button class="btn btn-primary" id="fetchBtn">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+          <path d="M13 7A6 6 0 111 7a6 6 0 0112 0zM7 4v6M4 7h6"/>
+        </svg>
+        Tải dữ liệu
+      </button>
+      <button class="btn btn-secondary" id="downloadAllBtn" disabled>
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+          <path d="M7 1v8M3 6l4 4 4-4M2 12h10"/>
+        </svg>
+        Tải tất cả (ZIP)
+      </button>
+      <div class="counter" id="counter">0 items</div>
+    </div>
+
+    <!-- Loading -->
+    <div class="loading" id="loading" style="display:none">
+      <div class="spinner"></div>
+      <p id="loadingText">Đang tải decorations...</p>
+    </div>
+
+    <!-- Error -->
+    <div class="error" id="error" style="display:none">
+      <p id="errorText"></p>
+      <button class="btn btn-small" id="retryBtn">Thử lại</button>
+    </div>
+
+    <!-- Content Grid -->
+    <div class="content" id="content">
+      <div class="empty-state" id="emptyState">
+        <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="24" cy="24" r="20"/>
+          <path d="M16 20c0-2.2 1.8-4 4-4s4 1.8 4 4M24 20c0-2.2 1.8-4 4-4s4 1.8 4 4M16 30s2 4 8 4 8-4 8-4"/>
+        </svg>
+        <p>Nhấn <strong>"Tải dữ liệu"</strong> để bắt đầu</p>
+        <p class="hint">Hãy mở Discord trong tab trước khi sử dụng</p>
+      </div>
+      <div class="grid" id="grid" style="display:none"></div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <p>Discord Decoration Grabber v1.0</p>
+    </footer>
+  </div>
+
+  <script src="jszip.min.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
