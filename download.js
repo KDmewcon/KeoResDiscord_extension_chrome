@@ -80,15 +80,28 @@
         compressionOptions: { level: 5 }
       });
 
-      // Tải xuống tự động
+      // Tải xuống - hiện hộp thoại Save As
       var blobUrl = URL.createObjectURL(zipBlob);
-      var a = document.createElement('a');
-      a.href = blobUrl;
-      a.download = partName;
-      a.style.display = 'none';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
+
+      await new Promise(function (resolve) {
+        chrome.downloads.download({
+          url: blobUrl,
+          filename: partName,
+          saveAs: true
+        }, function (downloadId) {
+          if (chrome.runtime.lastError) {
+            // Fallback nếu chrome.downloads fail
+            var a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = partName;
+            a.style.display = 'none';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+          }
+          resolve();
+        });
+      });
 
       var sizeMB = formatSize(zipBlob.size);
       totalZips++;

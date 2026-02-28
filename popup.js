@@ -6,6 +6,7 @@
   let currentTab = 'decorations';
   let allDecorations = [];
   let allEffects = [];
+  let allNameplates = [];
   let collectedItems = [];
   let discordToken = null;
 
@@ -121,6 +122,7 @@
 
       if (categories && Array.isArray(categories)) {
         allDecorations = [];
+        allNameplates = [];
         categories.forEach(category => {
           if (category.products) {
             category.products.forEach(product => {
@@ -149,6 +151,19 @@
                     label: item.label || product.name,
                     previewUrl: item.asset,
                     effects: item.effects || []
+                  });
+                } else if (item.type === 2 || item.type === 'COLLECTIBLES_NAMEPLATE') {
+                  const nameplatePreview = getNameplatePreviewUrl(item, product);
+                  allNameplates.push({
+                    id: item.id,
+                    skuId: product.sku_id,
+                    name: product.name,
+                    categoryName: category.name,
+                    type: 'nameplate',
+                    asset: item.asset,
+                    label: item.label || product.name,
+                    previewUrl: nameplatePreview,
+                    styles: item.styles || product.styles || []
                   });
                 }
               });
@@ -206,10 +221,11 @@
         console.log('Could not fetch avatar decorations directly:', e);
       }
 
-      collectedItems = [...allDecorations, ...allEffects];
+      collectedItems = [...allDecorations, ...allEffects, ...allNameplates];
       await chrome.storage.local.set({
         allDecorations,
         allEffects,
+        allNameplates,
         collectedItems,
         lastFetch: Date.now()
       });
@@ -218,7 +234,7 @@
       updateCounter();
       renderContent();
       downloadAllBtn.disabled = collectedItems.length === 0;
-      showToast(`Đã tìm thấy ${allDecorations.length} decorations và ${allEffects.length} effects!`, 'success');
+      showToast(`${allDecorations.length} decorations, ${allEffects.length} effects, ${allNameplates.length} nameplates!`, 'success');
 
     } catch (e) {
       hideLoading();
@@ -270,6 +286,57 @@
     return `https://cdn.discordapp.com/avatar-decoration-presets/${asset}.png?size=240&passthrough=true`;
   }
 
+  // Nameplate CDN base
+  const NAMEPLATE_CDN = 'https://cdn.discordapp.com/assets/collectibles/';
+
+  function getNameplateUrl(asset) {
+    if (!asset) return '';
+    // Asset path ví dụ: "nameplates/zodiac/cancer/" 
+    // File thật: .../nameplates/zodiac/cancer/asset.webm
+    let path = asset;
+    // Bỏ trailing slash nếu có
+    if (path.endsWith('/')) path = path.slice(0, -1);
+    return `${NAMEPLATE_CDN}${path}/asset.webm`;
+  }
+
+  function getNameplatePreviewImg(asset) {
+    if (!asset) return '';
+    let path = asset;
+    if (path.endsWith('/')) path = path.slice(0, -1);
+    // Thử static.png cho preview (nhẹ hơn webm)
+    return `${NAMEPLATE_CDN}${path}/static.png`;
+  }
+
+  function getNameplateAllUrls(asset) {
+    if (!asset) return [];
+    let path = asset;
+    if (path.endsWith('/')) path = path.slice(0, -1);
+    // Tải cả webm (animated) và static png
+    return [
+      `${NAMEPLATE_CDN}${path}/asset.webm`,
+      `${NAMEPLATE_CDN}${path}/static.png`
+    ];
+  }
+
+  function getNameplatePreviewUrl(item, product) {
+    // Ưu tiên static.png cho preview
+    if (item.asset) {
+      return getNameplatePreviewImg(item.asset);
+    }
+    if (product && product.bundled_products) {
+      for (const bp of product.bundled_products) {
+        if (bp.items) {
+          for (const bpItem of bp.items) {
+            if (bpItem.asset && (bpItem.type === 2 || bpItem.type === 'COLLECTIBLES_NAMEPLATE')) {
+              return getNameplatePreviewImg(bpItem.asset);
+            }
+          }
+        }
+      }
+    }
+    return '';
+  }
+
   function getEffectPreviewUrl(effect) {
     if (effect.thumbnailPreviewSrc) return effect.thumbnailPreviewSrc;
     if (effect.reducedMotionSrc) return effect.reducedMotionSrc;
@@ -291,6 +358,9 @@
         break;
       case 'effects':
         items = allEffects;
+        break;
+      case 'nameplates':
+        items = allNameplates;
         break;
       case 'collected':
         items = collectedItems;
@@ -337,9 +407,12 @@
     card.className = 'card';
     card.style.animationDelay = `${index * 0.03}s`;
 
-    const previewUrl = item.type === 'effect' ?
-      getEffectPreviewUrl(item) :
-      item.previewUrl;
+    let previewUrl = item.previewUrl || '';
+    if (item.type === 'effect') {
+      previewUrl = getEffectPreviewUrl(item);
+    } else if (item.type === 'nameplate' && !previewUrl && item.asset) {
+      previewUrl = getNameplatePreviewImg(item.asset);
+    }
 
     card.innerHTML = `
       <div class="card-preview">
@@ -354,7 +427,7 @@
       </div>
       <div class="card-info">
         <div class="name" title="${item.name}">${item.name}</div>
-        <span class="type-badge">${item.type === 'effect' ? 'Effect' : 'Decoration'}</span>
+        <span class="type-badge">${item.type === 'effect' ? 'Effect' : item.type === 'nameplate' ? 'Nameplate' : 'Decoration'}</span>
       </div>
       <div class="card-actions">
         <button class="card-btn download-btn" title="Tải xuống">
@@ -486,6 +559,17 @@
           if (eff.thumbnailSrc) urls.add(eff.thumbnailSrc);
         });
       }
+    } else if (item.type === 'nameplate') {
+      if (item.asset) {
+        getNameplateAllUrls(item.asset).forEach(u => urls.add(u));
+      }
+      if (item.styles && item.styles.length > 0) {
+        item.styles.forEach(style => {
+          if (style.asset) {
+            getNameplateAllUrls(style.asset).forEach(u => urls.add(u));
+          }
+        });
+      }
     }
 
     if (item.previewUrl && urls.size === 0) {
@@ -519,6 +603,10 @@
       case 'effects':
         items = allEffects;
         zipName = 'discord_profile_effects';
+        break;
+      case 'nameplates':
+        items = allNameplates;
+        zipName = 'discord_nameplates';
         break;
       case 'collected':
         items = collectedItems;
@@ -566,9 +654,10 @@
   // ===== Load Stored Data =====
   async function loadStoredData() {
     try {
-      const stored = await chrome.storage.local.get(['allDecorations', 'allEffects', 'collectedItems']);
+      const stored = await chrome.storage.local.get(['allDecorations', 'allEffects', 'allNameplates', 'collectedItems']);
       if (stored.allDecorations) allDecorations = stored.allDecorations;
       if (stored.allEffects) allEffects = stored.allEffects;
+      if (stored.allNameplates) allNameplates = stored.allNameplates;
       if (stored.collectedItems) collectedItems = stored.collectedItems;
 
       if (collectedItems.length > 0) {
@@ -608,6 +697,7 @@
     switch (currentTab) {
       case 'decorations': count = allDecorations.length; break;
       case 'effects': count = allEffects.length; break;
+      case 'nameplates': count = allNameplates.length; break;
       case 'collected': count = collectedItems.length; break;
     }
     counter.textContent = `${count} items`;
