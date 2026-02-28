@@ -47,12 +47,14 @@
 
     var fileList = data.zipJob.fileList;
     var zipFilename = data.zipJob.zipFilename;
+    var splitEnabled = data.zipJob.splitEnabled || false;
     chrome.storage.local.remove('zipJob');
 
     var totalFiles = fileList.length;
-    var MAX_ZIP_SIZE = 500 * 1024 * 1024; // 500MB
+    var MAX_ZIP_SIZE = splitEnabled ? (500 * 1024 * 1024) : Infinity; // 500MB hoặc không giới hạn
 
-    subtitle.textContent = 'Đang tải ' + totalFiles + ' files...';
+    var modeText = splitEnabled ? ' (chia nhỏ ~500MB/file)' : ' (1 file ZIP)';
+    subtitle.textContent = 'Đang tải ' + totalFiles + ' files...' + modeText;
 
     var totalCompleted = 0;
     var totalFailed = 0;

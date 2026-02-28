@@ -592,7 +592,6 @@
   }
 
   // ===== Download All as ZIP =====
-  // Mở tab riêng để xử lý ZIP (tránh popup đóng giữa chừng)
   async function downloadAll() {
     let items = [];
     let zipName = 'discord_decorations';
@@ -620,35 +619,104 @@
       return;
     }
 
-    // Thu thập danh sách file cần tải
+    // Hiện dialog hỏi chia file hay không
+    showDownloadDialog(items, zipName);
+  }
+
+  function showDownloadDialog(items, zipName) {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+      <div class="modal" style="text-align:center; padding:24px;">
+        <div class="name" style="font-size:16px; margin-bottom:4px;">📦 Tải ${items.length} items</div>
+        <div class="sku" style="margin-bottom:16px;">Chọn cách tải xuống:</div>
+        <div class="modal-actions" style="flex-direction:column; gap:10px;">
+          <button class="btn btn-primary" id="dlSingle" style="width:100%;">
+            📄 1 file ZIP duy nhất
+          </button>
+          <button class="btn btn-secondary" id="dlSplit" style="width:100%;">
+            📂 Chia nhỏ (~500MB / file)
+          </button>
+          <button class="btn btn-secondary" id="dlCancel" style="width:100%; opacity:0.7;">
+            ❌ Hủy
+          </button>
+        </div>
+      </div>
+    `;
+
+    overlay.querySelector('#dlCancel').addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) overlay.remove();
+    });
+
+    overlay.querySelector('#dlSingle').addEventListener('click', () => {
+      overlay.remove();
+      startDownload(items, zipName, false);
+    });
+
+    overlay.querySelector('#dlSplit').addEventListener('click', () => {
+      overlay.remove();
+      startDownload(items, zipName, true);
+    });
+
+    document.body.appendChild(overlay);
+  }
+
+  function getOriginalFilename(url) {
+    try {
+      const pathname = new URL(url).pathname;
+      // Lấy file name gốc từ URL
+      const parts = pathname.split('/').filter(p => p);
+      const lastPart = parts[parts.length - 1];
+      // Nếu lastPart có extension → dùng luôn
+      if (lastPart && lastPart.includes('.')) {
+        return lastPart;
+      }
+      // Nếu không có extension, ghép path
+      return parts.slice(-2).join('_') || 'file';
+    } catch (e) {
+      return 'file';
+    }
+  }
+
+  function startDownload(items, zipName, splitEnabled) {
+    // Thu thập danh sách file
     const fileList = [];
     items.forEach(item => {
       const urls = getDownloadUrls(item);
-      const safeName = (item.name || 'unknown').replace(/[^a-zA-Z0-9_-]/g, '_');
-      const category = (item.categoryName || item.type || 'other').replace(/[^a-zA-Z0-9_-]/g, '_');
+      const itemName = (item.name || 'unknown').replace(/[\\/:*?"<>|]/g, '_');
+      const category = (item.categoryName || item.type || 'other').replace(/[\\/:*?"<>|]/g, '_');
 
       urls.forEach((url, idx) => {
-        const ext = getExtFromUrl(url);
-        const filename = `${category}/${safeName}${urls.length > 1 ? `_${idx + 1}` : ''}.${ext}`;
+        const originalFile = getOriginalFilename(url);
+        let filename;
+        if (urls.length === 1) {
+          // 1 URL → dùng tên item + extension gốc
+          const ext = originalFile.includes('.') ? originalFile.split('.').pop() : getExtFromUrl(url);
+          filename = `${category}/${itemName}.${ext}`;
+        } else {
+          // Nhiều URL → dùng tên item + tên file gốc
+          filename = `${category}/${itemName}_${originalFile}`;
+        }
         fileList.push({ url, filename, name: item.name });
       });
     });
 
-    // Lưu fileList vào storage và mở tab download
+    // Lưu vào storage và mở tab download
     const timestamp = new Date().toISOString().slice(0, 10);
     const zipFilename = `${zipName}_${timestamp}.zip`;
 
-    await chrome.storage.local.set({
+    chrome.storage.local.set({
       zipJob: {
         fileList,
         zipFilename,
+        splitEnabled,
         timestamp: Date.now()
       }
-    });
-
-    // Mở trang download trong tab mới (không bị đóng như popup)
-    chrome.tabs.create({
-      url: chrome.runtime.getURL('download.html')
+    }, () => {
+      chrome.tabs.create({
+        url: chrome.runtime.getURL('download.html')
+      });
     });
   }
 
